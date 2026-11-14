@@ -4,7 +4,7 @@ import { BookOpen, Calendar, ChevronDown, Coffee, LogOut, MapPin, Share2, Shield
 const TABS = [
   { id: 'passport', label: 'My Passport', icon: BookOpen },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
-  { id: 'maps', label: 'Explore Maps', icon: MapPin, soon: true },
+  { id: 'explore', label: 'Explore Spots', icon: MapPin },
   { id: 'share', label: 'Share Studio', icon: Share2 },
 ];
 
@@ -88,8 +88,7 @@ export default function Navbar({ view, onChange, user, explorerName, onOpenSetti
           {menuOpen && (
             <div
               role="menu"
-              className="absolute right-0 z-50 mt-2 w-60 overflow-hidden rounded-xl border-2 border-espresso bg-parchment font-type text-sm text-espresso shadow-xl"
-            >
+              className="absolute right-0 z-50 mt-2 w-60 overflow-hidden rounded-xl border-2 border-espresso bg-[#fdfbf7] font-type text-sm text-espresso shadow-xl"            >
               {/* User Summary Header */}
               <div className="border-b border-vintage bg-mist/60 px-4 py-3">
                 <p className="truncate font-display font-bold text-espresso">{explorerName}</p>

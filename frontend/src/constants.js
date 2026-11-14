@@ -1,14 +1,14 @@
-import { Coffee, Croissant, Leaf, UtensilsCrossed, CakeSlice } from 'lucide-react';
-
-export const ITEM_TYPES = ['Coffee', 'Pastry', 'Matcha', 'Brunch', 'Dessert'];
-
 export const ITEM_ICONS = {
-  Coffee,
-  Pastry: Croissant,
-  Matcha: Leaf,
-  Brunch: UtensilsCrossed,
-  Dessert: CakeSlice,
+  Coffee: '☕',
+  Pastry: '🥐',
+  Matcha: '🍵',
+  Brunch: '🥑',
+  Dessert: '🍰',
+  Tea: '🫖',
+  Dinner: '🍽️',
 };
+
+export const ITEM_TYPES = Object.keys(ITEM_ICONS);
 
 export const FLAVOR_TAGS = [
   'Flaky', 'Buttery', 'Smooth', 'Sweet', 'Creamy', 'Nutty', 'Fruity', 'Bitter', 'Matcha',

@@ -8,7 +8,8 @@ import AccountSettingsModal from './components/AccountSettingsModal';
 import AuthPage from './pages/AuthPage';
 import ShareStudio from './pages/ShareStudio';
 import { supabase } from './services/supabase';
-import { createEntry, deleteEntry, errorMessage, getEntries } from './services/api';
+import { createEntry, deleteEntry, updateEntry, errorMessage, getEntries } from './services/api';
+import Explore from './pages/Explore';
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -18,7 +19,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState(null); // null = closed, or 'profile' | 'account' | 'socials'
+  const [settingsTab, setSettingsTab] = useState(null);
   const [explorerName, setExplorerName] = useState('Café Explorer');
 
   useEffect(() => {
@@ -74,6 +75,11 @@ export default function App() {
     await load();
   };
 
+  const handleUpdate = async (id, payload) => {
+    await updateEntry(id, payload);
+    await load();
+  };
+
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this stamp and its notes?')) return;
     try {
@@ -111,24 +117,27 @@ export default function App() {
           </div>
         )}
 
-        {loading ? (
-          <p className="py-20 text-center font-type text-mocha">Opening your passport…</p>
-        ) : view === 'calendar' ? (
+        {view === 'calendar' ? (
           <CalendarView entries={entries} />
+        ) : view === 'explore' ? (
+          <Explore entries={entries} onNew={() => setModalOpen(true)} />
         ) : view === 'share' ? (
           <ShareStudio entries={entries} user={session.user} />
         ) : (
           <Passport
             entries={entries}
             explorerName={explorerName}
+            user={session.user}
+            loading={loading}
             onRename={rename}
             onNew={() => setModalOpen(true)}
             onDelete={handleDelete}
+            onUpdate={handleUpdate}
           />
         )}
       </main>
 
-      {view === 'calendar' && (
+      {(view === 'calendar' || view === 'explore') && (
         <button
           type="button"
           onClick={() => setModalOpen(true)}

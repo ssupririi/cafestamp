@@ -1,12 +1,19 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import http from 'http';
 import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
 app.use(express.json());
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -18,10 +25,10 @@ if (!supabaseUrl || !supabaseServiceKey) {
   process.exit(1);
 }
 
-// 1. Client for verifying user tokens (Auth)
+// Client for verifying user tokens (Auth)
 const supabaseAuthClient = createClient(supabaseUrl, supabaseAnonKey);
 
-// 2. Admin client for secure database operations (bypasses RLS for trusted backend server)
+// Admin client for secure database operations
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Auth Middleware: Extracts and verifies user from Bearer token
@@ -42,7 +49,6 @@ async function requireAuth(req, res, next) {
   next();
 }
 
-
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'cafestamp-backend' });
@@ -60,6 +66,7 @@ app.get('/api/entries', requireAuth, async (req, res) => {
         visit_date,
         item_type,
         rating,
+        price,
         tasting_notes,
         photo_url,
         created_at,
@@ -79,13 +86,12 @@ app.get('/api/entries', requireAuth, async (req, res) => {
 // POST a new entry and its tags for the authenticated user
 app.post('/api/entries', requireAuth, async (req, res) => {
   try {
-    const { cafe_name, neighborhood, visit_date, item_type, rating, tasting_notes, photo_url, tags } = req.body;
+    const { cafe_name, neighborhood, visit_date, item_type, rating, price, tasting_notes, photo_url, tags } = req.body;
 
     if (!cafe_name || !visit_date) {
       return res.status(400).json({ error: 'Cafe name and visit date are required.' });
     }
 
-    // 1. Check if café already exists for this user (or globally)
     let cafeId;
     const { data: existingCafes } = await supabase
       .from('cafes')
@@ -105,7 +111,6 @@ app.post('/api/entries', requireAuth, async (req, res) => {
       cafeId = newCafe.id;
     }
 
-    // 2. Insert the entry record linked to the authenticated user
     const { data: entry, error: entryErr } = await supabase
       .from('entries')
       .insert([{
@@ -116,13 +121,13 @@ app.post('/api/entries', requireAuth, async (req, res) => {
         rating: rating || 5,
         tasting_notes: tasting_notes || '',
         photo_url: photo_url || '',
+        price: price !== null && price !== undefined && price !== '' ? parseFloat(price) : null,
       }])
       .select()
       .single();
 
     if (entryErr) throw entryErr;
 
-    // 3. Insert tags if provided
     if (tags && tags.length > 0) {
       const tagRows = tags.map((t) => ({ entry_id: entry.id, tag_name: t.trim() }));
       const { error: tagErr } = await supabase.from('entry_tags').insert(tagRows);
@@ -135,12 +140,81 @@ app.post('/api/entries', requireAuth, async (req, res) => {
   }
 });
 
-// DELETE an entry (ensuring it belongs to the authenticated user)
+// PUT (Update) an existing entry and its tags
+app.put('/api/entries/:id', requireAuth, async (req, res) => {
+  try {
+    const entryId = req.params.id;
+    const { cafe_name, neighborhood, visit_date, item_type, rating, price, tasting_notes, photo_url, tags } = req.body;
+
+    if (!cafe_name || !visit_date) {
+      return res.status(400).json({ error: 'Cafe name and visit date are required.' });
+    }
+
+    const { data: target } = await supabase
+      .from('entries')
+      .select('user_id')
+      .eq('id', entryId)
+      .single();
+
+    if (!target) return res.status(404).json({ error: 'Entry not found.' });
+    if (target.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Forbidden: You do not own this stamp entry.' });
+    }
+
+    let cafeId;
+    const { data: existingCafes } = await supabase
+      .from('cafes')
+      .select('id')
+      .ilike('name', cafe_name.trim())
+      .limit(1);
+
+    if (existingCafes && existingCafes.length > 0) {
+      cafeId = existingCafes[0].id;
+    } else {
+      const { data: newCafe, error: cafeErr } = await supabase
+        .from('cafes')
+        .insert([{ name: cafe_name.trim(), neighborhood: neighborhood?.trim() || '' }])
+        .select()
+        .single();
+      if (cafeErr) throw cafeErr;
+      cafeId = newCafe.id;
+    }
+
+    const { data: updatedEntry, error: entryErr } = await supabase
+      .from('entries')
+      .update({
+        cafe_id: cafeId,
+        visit_date,
+        item_type: item_type || 'Coffee',
+        rating: rating || 5,
+        tasting_notes: tasting_notes || '',
+        photo_url: photo_url || '',
+        price: price !== null && price !== undefined && price !== '' ? parseFloat(price) : null,
+      })
+      .eq('id', entryId)
+      .select()
+      .single();
+
+    if (entryErr) throw entryErr;
+
+    await supabase.from('entry_tags').delete().eq('entry_id', entryId);
+    if (tags && tags.length > 0) {
+      const tagRows = tags.map((t) => ({ entry_id: entryId, tag_name: t.trim() }));
+      const { error: tagErr } = await supabase.from('entry_tags').insert(tagRows);
+      if (tagErr) throw tagErr;
+    }
+
+    res.json(updatedEntry);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE an entry
 app.delete('/api/entries/:id', requireAuth, async (req, res) => {
   try {
     const entryId = req.params.id;
 
-    // Verify ownership
     const { data: target } = await supabase
       .from('entries')
       .select('user_id')
@@ -167,7 +241,9 @@ app.delete('/api/entries/:id', requireAuth, async (req, res) => {
   }
 });
 
+const server = http.createServer({ maxHeaderSize: 32 * 1024 }, app);
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`CafeStamp backend running on port ${PORT}`);
 });
