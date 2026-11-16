@@ -1,7 +1,37 @@
 import { useState, useRef } from 'react';
-import { X, Plus, Upload } from 'lucide-react';
+import { X, Plus, Upload, Check } from 'lucide-react';
 import { ITEM_TYPES, FLAVOR_TAGS, toDateKey } from '../constants';
 import { Bean } from './Bean';
+
+function compressVisitPhoto(file, maxDim = 800) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', 0.78));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve('');
+    };
+    img.src = url;
+  });
+}
 
 export default function NewEntryModal({ open, onClose, onCreate }) {
   const [cafeName, setCafeName] = useState('');
@@ -36,14 +66,11 @@ export default function NewEntryModal({ open, onClose, onCreate }) {
     }
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (uploadEvent) => {
-      setPhotoUrl(uploadEvent.target.result);
-    };
-    reader.readAsDataURL(file);
+    const compressed = await compressVisitPhoto(file);
+    if (compressed) setPhotoUrl(compressed);
   };
 
   const handleSubmit = async (e) => {
@@ -81,14 +108,17 @@ export default function NewEntryModal({ open, onClose, onCreate }) {
     }
   };
 
+  const customSelectedTags = selectedTags.filter((t) => !FLAVOR_TAGS.includes(t));
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="relative flex w-full max-w-lg flex-col rounded-2xl border-4 border-espresso bg-[#fdfbf7] p-5 shadow-2xl text-espresso">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-espresso/45 p-3 sm:p-4 backdrop-blur-xs">
+      {/* Added max-h-[90vh] and overflow-y-auto so small screens can scroll cleanly */}
+      <div className="relative flex w-full max-w-lg max-h-[90vh] flex-col overflow-y-auto rounded-2xl border-4 border-espresso bg-[#fdfbf7] p-4 sm:p-5 text-espresso shadow-2xl">
         {/* Header */}
-        <div className="mb-3 flex items-center justify-between border-b border-espresso/20 pb-2">
+        <div className="mb-3 flex items-center justify-between border-b border-espresso/20 pb-2.5">
           <div className="flex items-center gap-2 text-espresso">
             <Plus className="h-5 w-5 text-sakura" />
-            <h2 className="font-display text-lg font-bold">Stamp New Visit</h2>
+            <h2 className="font-display text-base font-bold">Stamp New Visit</h2>
           </div>
           <button
             type="button"
@@ -99,48 +129,48 @@ export default function NewEntryModal({ open, onClose, onCreate }) {
           </button>
         </div>
 
-        {/* Form */}
+        {/* Form - Single Column Stack */}
         <form onSubmit={handleSubmit} className="space-y-3 font-type text-xs text-espresso">
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label className="block font-bold text-espresso">Café Name *</label>
+              <label className="block font-bold text-espresso mb-1">Café Name *</label>
               <input
                 type="text"
                 required
                 placeholder="e.g. Wildflour Café"
                 value={cafeName}
                 onChange={(e) => setCafeName(e.target.value)}
-                className="mt-1 w-full rounded border border-vintage bg-white px-2.5 py-1.5 text-espresso focus:border-sakura focus:outline-none"
+                className="w-full rounded border border-vintage bg-white px-3 py-2 text-espresso focus:border-sakura focus:outline-none"
               />
             </div>
             <div>
-              <label className="block font-bold text-espresso">Neighborhood / City</label>
+              <label className="block font-bold text-espresso mb-1">Neighborhood / City</label>
               <input
                 type="text"
                 placeholder="e.g. BGC, Taguig"
                 value={neighborhood}
                 onChange={(e) => setNeighborhood(e.target.value)}
-                className="mt-1 w-full rounded border border-vintage bg-white px-2.5 py-1.5 text-espresso focus:border-sakura focus:outline-none"
+                className="w-full rounded border border-vintage bg-white px-3 py-2 text-espresso focus:border-sakura focus:outline-none"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2.5">
             <div>
-              <label className="block font-bold text-espresso">Visit Date</label>
+              <label className="block font-bold text-espresso mb-1">Visit Date</label>
               <input
                 type="date"
                 value={visitDate}
                 onChange={(e) => setVisitDate(e.target.value)}
-                className="mt-1 w-full rounded border border-vintage bg-white px-2.5 py-1.5 text-espresso focus:border-sakura focus:outline-none"
+                className="w-full rounded border border-vintage bg-white px-2.5 py-2 text-espresso focus:border-sakura focus:outline-none"
               />
             </div>
             <div>
-              <label className="block font-bold text-espresso">Treat Type</label>
+              <label className="block font-bold text-espresso mb-1">Treat Type</label>
               <select
                 value={itemType}
                 onChange={(e) => setItemType(e.target.value)}
-                className="mt-1 w-full rounded border border-vintage bg-white px-2.5 py-1.5 text-espresso focus:border-sakura focus:outline-none"
+                className="w-full rounded border border-vintage bg-white px-2.5 py-2 text-espresso focus:border-sakura focus:outline-none"
               >
                 {ITEM_TYPES.map((type) => (
                   <option key={type} value={type}>{type}</option>
@@ -148,7 +178,7 @@ export default function NewEntryModal({ open, onClose, onCreate }) {
               </select>
             </div>
             <div>
-              <label className="block font-bold text-espresso">Price (₱)</label>
+              <label className="block font-bold text-espresso mb-1">Price (₱)</label>
               <input
                 type="number"
                 step="0.01"
@@ -156,14 +186,14 @@ export default function NewEntryModal({ open, onClose, onCreate }) {
                 placeholder="0.00"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                className="mt-1 w-full rounded border border-vintage bg-white px-2.5 py-1.5 text-espresso focus:border-sakura focus:outline-none"
+                className="w-full rounded border border-vintage bg-white px-2.5 py-2 text-espresso focus:border-sakura focus:outline-none"
               />
             </div>
           </div>
 
           <div>
-            <label className="block font-bold text-espresso">Bean Rating (1-5)</label>
-            <div className="mt-1 flex items-center gap-1.5">
+            <label className="block font-bold text-espresso mb-1">Bean Rating (1-5)</label>
+            <div className="flex items-center gap-1.5 rounded border border-vintage/60 bg-white/50 px-3 py-1.5">
               {[1, 2, 3, 4, 5].map((num) => (
                 <button
                   type="button"
@@ -179,8 +209,8 @@ export default function NewEntryModal({ open, onClose, onCreate }) {
           </div>
 
           <div>
-            <label className="block font-bold text-espresso">Flavor Tags</label>
-            <div className="mt-1 flex flex-wrap gap-1">
+            <label className="block font-bold text-espresso mb-1">Flavor Tags</label>
+            <div className="flex flex-wrap gap-1 rounded border border-vintage/60 bg-white/50 p-2">
               {FLAVOR_TAGS.map((tag) => {
                 const active = selectedTags.includes(tag);
                 return (
@@ -198,23 +228,34 @@ export default function NewEntryModal({ open, onClose, onCreate }) {
                   </button>
                 );
               })}
+              {customSelectedTags.map((tag) => (
+                <button
+                  type="button"
+                  key={tag}
+                  onClick={() => toggleTag(tag)}
+                  className="inline-flex items-center gap-1 rounded border border-espresso bg-espresso px-2 py-0.5 text-[10px] font-bold text-parchment hover:bg-roast"
+                >
+                  #{tag} <X className="h-2.5 w-2.5" />
+                </button>
+              ))}
             </div>
+
             {/* Custom Tag Input */}
-            <div className="mt-2 flex gap-1.5">
+            <div className="mt-1.5 flex gap-1.5">
               <input
                 type="text"
                 placeholder="Add custom tag (e.g. cozy, matcha)..."
                 value={customTagInput}
                 onChange={(e) => setCustomTagInput(e.target.value)}
                 onKeyDown={handleAddCustomTag}
-                className="w-full rounded border border-vintage bg-white px-2 py-1 text-xs text-espresso focus:border-sakura focus:outline-none"
+                className="w-full rounded border border-vintage bg-white px-2.5 py-1.5 text-xs text-espresso focus:border-sakura focus:outline-none"
               />
               <button
                 type="button"
                 onClick={handleAddCustomTag}
-                className="inline-flex items-center gap-1 rounded border border-vintage bg-paper px-2.5 py-1 text-xs font-bold text-espresso hover:bg-mist"
+                className="inline-flex items-center gap-1 rounded border border-vintage bg-paper px-3 py-1.5 text-xs font-bold text-espresso hover:bg-mist"
               >
-                <Plus className="h-3 w-3" /> Add
+                <Plus className="h-3.5 w-3.5" /> Add
               </button>
             </div>
           </div>
@@ -231,39 +272,46 @@ export default function NewEntryModal({ open, onClose, onCreate }) {
             <div
               onClick={() => fileInputRef.current?.click()}
               onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
+              onDrop={async (e) => {
                 e.preventDefault();
                 const file = e.dataTransfer.files?.[0];
                 if (file) {
-                  const reader = new FileReader();
-                  reader.onload = (uploadEvent) => setPhotoUrl(uploadEvent.target.result);
-                  reader.readAsDataURL(file);
+                  const compressed = await compressVisitPhoto(file);
+                  if (compressed) setPhotoUrl(compressed);
                 }
               }}
-              className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-vintage bg-white p-2.5 text-center cursor-pointer hover:border-sakura transition-colors"
+              className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-vintage bg-white p-3 text-center cursor-pointer hover:border-sakura transition-colors"
             >
-              <Upload className="h-4 w-4 text-mocha mb-0.5" />
-              <p className="font-type text-xs text-roast">
-                Drag & drop your photo here, or <span className="font-bold text-espresso underline">browse</span>
-              </p>
-              <p className="text-[10px] text-latte mt-0.5">
-                {photoUrl ? 'Photo loaded successfully!' : 'Supports PNG, JPG, WebM'}
-              </p>
+              {photoUrl ? (
+                <div className="flex items-center gap-2 text-emerald-700 font-bold py-1">
+                  <Check className="h-4 w-4" />
+                  <span>Photo ready! Click to replace</span>
+                </div>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 text-mocha mb-0.5" />
+                  <p className="text-xs text-roast">
+                    Drag & drop your photo here, or <span className="font-bold text-espresso underline">browse</span>
+                  </p>
+                  <p className="text-[10px] text-latte mt-0.5">Supports PNG, JPG, WebM</p>
+                </>
+              )}
             </div>
           </div>
 
           <div>
-            <label className="block font-bold text-espresso">Tasting Notes</label>
+            <label className="block font-bold text-espresso mb-1">Tasting Notes</label>
             <textarea
               rows={2}
               value={tastingNotes}
               onChange={(e) => setTastingNotes(e.target.value)}
               placeholder="Notes on aroma, flavor profile..."
-              className="mt-1 w-full rounded border border-vintage bg-white px-2.5 py-1.5 text-espresso focus:border-sakura focus:outline-none"
+              className="w-full rounded border border-vintage bg-white px-3 py-2 text-espresso focus:border-sakura focus:outline-none resize-none"
             />
           </div>
 
-          <div className="mt-3 flex justify-end gap-2 pt-1">
+          {/* Footer Actions */}
+          <div className="flex justify-end gap-2 border-t border-vintage/60 pt-2.5">
             <button
               type="button"
               onClick={onClose}

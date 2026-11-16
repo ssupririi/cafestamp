@@ -5,6 +5,7 @@ import { BeanRating, Bean } from '../components/Bean';
 import { ITEM_ICONS, ITEM_TYPES, formatDate } from '../constants';
 import ReceiptModal from '../components/ReceiptModal';
 import EditEntryModal from '../components/EditEntryModal';
+import { motion } from 'motion/react';
 
 function Pill({ children }) {
   return (
@@ -90,7 +91,6 @@ export default function Passport({ entries, explorerName, user, loading, onRenam
   const avatarUrl = user?.user_metadata?.avatar_url || '';
   const userBio = user?.user_metadata?.bio || '';
 
-  // Rich Vintage Loading State (Replacing the plain skeleton)
   if (loading) {
     return (
       <div className="space-y-10">
@@ -120,7 +120,7 @@ export default function Passport({ entries, explorerName, user, loading, onRenam
   }
 
   return (
-    <div className="space-y-10">
+    <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
       {/* Mobile Page Tab Switcher with SVG Icons */}
       <div className="flex rounded-xl bg-espresso p-1.5 md:hidden font-type text-xs font-bold text-parchment shadow-md gap-1">
         <button
@@ -460,6 +460,6 @@ export default function Passport({ entries, explorerName, user, loading, onRenam
         onClose={() => setEditingEntry(null)}
         onUpdate={onUpdate}
       />
-    </div>
+    </motion.div>
   );
 }
